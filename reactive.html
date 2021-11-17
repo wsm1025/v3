@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+
+<body>
+  <script>
+    //shallowReactive(浅的劫持) reactive(深度劫持)
+    function shallowReactive(target) {
+      // 先判断类型(对象/数组)
+      if (target && typeof target === 'object') {
+        return new Proxy(target, reactiveHandler)
+      }
+      //基本类型直接返回
+      return target
+    }
+    function reactive(target) {
+      // 先判断类型(对象/数组)
+      if (target && typeof target === 'object') {
+        //深层次需递归处理
+        if(Array.isArray(target)){
+          target.forEach((item,index)=>{
+            target[index] = reactive(item)
+          })
+        }else{
+          Object.keys(target).forEach(e=>{
+            target[e] = reactive(target[e])
+          })
+        }
+        return new Proxy(target, reactiveHandler)
+      }
+      //基本类型直接返回
+      return target
+    }
+    //定义reactiveHandler处理器
+    const reactiveHandler = {
+      //获取属性
+      get(target, prop) {
+        const result = Reflect.get(target, prop)
+        console.log('拦截读取数据', prop, result);
+        return result
+      },
+      //添加属性 修改属性
+      set(target, prop, val) {
+        const result = Reflect.set(target, prop, val)
+        console.log('拦截修改数据', prop, val);
+        return result
+      },
+      //删除属性
+      deleteProperty(target, prop) {
+        const result = Reflect.deleteProperty(target, prop);
+        console.log('拦截删除数据', target, prop)
+        return result
+      }
+    }
+
+
+    const user = shallowReactive({
+      name:'wsm',
+      car:{
+        name:'保时捷'
+      }
+    })
+    //这只能读到，不能检测删除
+  // delete user.car.name
+  const user1 = reactive({
+      name:'wsm',
+      car:{
+        name:'保时捷'
+      }
+    })
+  delete user1.car.name
+
+  </script>
+</body>
+
+</html>
