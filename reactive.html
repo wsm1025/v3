@@ -23,12 +23,12 @@
       // 先判断类型(对象/数组)
       if (target && typeof target === 'object') {
         //深层次需递归处理
-        if(Array.isArray(target)){
-          target.forEach((item,index)=>{
+        if (Array.isArray(target)) {
+          target.forEach((item, index) => {
             target[index] = reactive(item)
           })
-        }else{
-          Object.keys(target).forEach(e=>{
+        } else {
+          Object.keys(target).forEach(e => {
             target[e] = reactive(target[e])
           })
         }
@@ -41,6 +41,7 @@
     const reactiveHandler = {
       //获取属性
       get(target, prop) {
+        if (prop === '_is_reactive') return true
         const result = Reflect.get(target, prop)
         console.log('拦截读取数据', prop, result);
         return result
@@ -60,21 +61,158 @@
     }
 
 
-    const user = shallowReactive({
-      name:'wsm',
-      car:{
-        name:'保时捷'
+    //   const user = shallowReactive({
+    //     name:'wsm',
+    //     car:{
+    //       name:'保时捷'
+    //     }
+    //   })
+    //   //这只能读到，不能检测删除
+    // // delete user.car.name
+    // const user1 = reactive({
+    //     name:'wsm',
+    //     car:{
+    //       name:'保时捷'
+    //     }
+    //   })
+    // delete user1.car.name
+    const readOnlyHandler = {
+      get(target, prop) {
+        if (prop === '_is_readonly') return true
+        const res = Reflect.get(target, prop)
+        console.log('拦截读取操作', prop, res);
+        return res
+      },
+      set(target, prop, val) {
+        console.warn('只能读取数据,不能修改数据或者添加数据');
+        return true
+      },
+      deleteProperty(target, val) {
+        console.warn('只能读取数据,不能删除数据');
+        return true
+
       }
-    })
-    //这只能读到，不能检测删除
-  // delete user.car.name
-  const user1 = reactive({
-      name:'wsm',
-      car:{
-        name:'保时捷'
+    }
+    // 定义shallowReadonly函数
+    function shallowReadonly(target) {
+      //判断对象
+      if (target && typeof target === 'object') {
+        return new Proxy(target, readOnlyHandler)
       }
-    })
-  delete user1.car.name
+      return target
+    }
+    // 定义readonly函数
+    function readonly(target) {
+      //判断对象
+      if (target && typeof target === 'object') {
+        if (Array.isArray(target)) {
+          target.forEach((item, index) => {
+            target[index] = readonly(item)
+          })
+        } else {
+          Object.keys(target).forEach(e => {
+            target[e] = readonly(target[e])
+          })
+        }
+        return new Proxy(target, readOnlyHandler)
+      }
+      return target
+    }
+    // let wsm = shallowReadonly({
+    //   name: '太宗啊',
+    //   car: {
+    //     name: '保时捷'
+    //   }
+    // })
+    // console.log(wsm.car);
+    // wsm.name = 'taizonga'
+    //拦截不了深度修改或删除
+    // delete wsm.car.name
+    // let wsm = readonly({
+    //   name: '太宗啊',
+    //   car: {
+    //     name: '保时捷'
+    //   }
+    // })
+    //  wsm.car.age ='10'
+
+    //定义shallowRef
+    function shallowRef(target) {
+      return {
+        //保存target数据
+        _value: target,
+        get value() {
+          console.warn('拦截读取数据');
+          return this._value
+        },
+        set value(val) {
+          console.warn('劫持到修改数据', val);
+          this._value = val
+        }
+      }
+    }
+    //定义ref
+    function ref(target) {
+      target = reactive(target)
+      return {
+        _is_ref: true,
+        //保存target数据
+        _value: target,
+        get value() {
+          console.warn('拦截读取数据');
+          return this._value
+        },
+        set value(val) {
+          console.warn('劫持到修改数据', val);
+          this._value = reactive(val)
+        }
+      }
+    }
+    // let wsm = shallowRef({
+    //   name: '太宗啊',
+    //   car: {
+    //     name: '保时捷'
+    //   }
+    // })
+    // console.log(wsm.value);
+    // wsm.value.car='1000'
+    // let wsm = ref({
+    //   name: '太宗啊',
+    //   car: {
+    //     name: '保时捷'
+    //   }
+    // })
+    // console.log(wsm.value);
+    // wsm.value = '1'
+    // wsm.value.car.name='宝马'
+
+
+    //isRef函数
+    function isRef(obj) {
+      return obj && obj._is_ref
+    }
+    //isReactive函数
+    function isReactive(obj) {
+      return obj && obj._is_reactive
+    }
+    //isReadonly函数
+    function isReadonly(obj) {
+      return obj && obj._is_readonly
+
+    }
+    //isProxy函数 reactive readonly
+    function isProxy(obj) {
+      return isReadonly(obj) || isReactive(obj)
+    }
+
+    // console.log(isRef(ref({})));
+    //缺陷
+    console.log(isReactive(readonly({
+      _is_reactive: true
+    })));
+    // console.log(isReadonly(readonly({})));
+    // console.log(isProxy(reactive({})));
+    // console.log(isProxy(readonly({})));
 
   </script>
 </body>
